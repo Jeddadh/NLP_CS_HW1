@@ -53,10 +53,12 @@ class SkipGram():
         self.W_embedding = None
         self.W_context = [{}]*(self.winSize - 1 )
         self.contexts_indices = [i for i in range(-self.winSize//2,int(self.winSize/2 - 0.5) + 1) if i != 0]
-        self.set_contexts = [set()]*(self.winSize - 1 )
+        self.set_contexts = [set()]*(self.winSize - 1)
+        self.set_negative_samples = [set()]*(self.winSize - 1)
         self.vocab = {}
         self.vocab_size = 0
         self.__create_vocabulary()
+        self.__initialize_embeddings()
 
 
     def __create_vocabulary(self):
@@ -70,6 +72,7 @@ class SkipGram():
         for word in self.vocab :
             if self.vocab[word] <= minCount :
                 self.vocab.pop(word)
+        self.vocab_size = len(self.vocab)
 
         # create contexts
         for sentence in self.sentences :
@@ -88,14 +91,43 @@ class SkipGram():
         self.W_embedding = {}
         for word in self.vocab :
             self.W_embedding[word] = np.random.rand(self.nEmbed)
-            for
-            self.W
+            for i in range(len(self.set_contexts)) :
+                self.W_context[i][word] = np.random.rand(self.nEmbed)
 
+    def __create_negative_samples(self):
+        self.set_negative_samples = [set()]*(self.winSize - 1)
+        for word in self.vocab :
+            for j in range(self.winSize - 1):
+                nb_negative_samples = 0
+                while nb_negative_samples < self.negativeRate :
+                    possible_words = list(self.vocab.keys())
+                    possible_words.remove(word)
+                    context_word = np.random.choice(possible_words)
+                    if (word,context_word) in self.set_contexts[j] :
+                        continue
+                    self.set_negative_samples[j].add((word,context_word))
+                    nb_negative_samples += 1
+    def __loss(self):
+        loss = 0
+        for j in range(self.winSize -1) :
+            for (word,j_context_word) in self.set_contexts[j]:
+                loss -= np.log(sigmoid(np.dot(self.W_embedding[word],self.W_context[j][context_word])))
+            for (word,j_context_word) in self.set_negative_samples[j]:
+                loss -= np.log(sigmoid(-np.dot(self.W_embedding[word],self.W_context[j][context_word])))
+
+    def __update_params(self,stepsize):
+        for j in range(self.winSize-1):
+            for (word,context_word) in self.set_contexts[j]:
+                self.W_embedding[word] = self.W_embedding[word] - stepsize*(self.W_context[j][context_word]*sigmoid(-self.W_embedding[word]*self.W_context[j][context_word]))
+            for (word,j_context_word) in self.set_negative_samples[j]:
+                self.W_embedding[word] = self.W_embedding[word] + stepsize*(self.W_context[j][context_word]*sigmoid(self.W_embedding[word]*self.W_context[j][context_word]))
 
     def train(self, stepsize, epochs):
-        W_context = np.zeros((self.nEmbed,))
         for i in range(epochs):
-            pass
+            loss = self.__loss()
+            print(loss)
+            self.__update_params(stepsize)
+
 
     def save(self,path):
         raise NotImplementedError('implement it!')
@@ -109,7 +141,6 @@ class SkipGram():
         """
         raise NotImplementedError('implement it!')
 
-    def get_vocabulary_and_contexts(self):
 
 
     @staticmethod
@@ -120,7 +151,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--text', help='path containing training data', required=True)
-    parser.add_argument('--model', help='path to store/read model (when training/testing)', required=True)
+    parser.add_argument('--model', help='path to store/read model (when training/testing)')
     parser.add_argument('--test', help='enters test mode', action='store_true')
 
     opts = parser.parse_args()
@@ -128,12 +159,13 @@ if __name__ == '__main__':
     if not opts.test:
         sentences = text2sentences(opts.text)
         sg = SkipGram(sentences)
-        sg.train(...)
-        sg.save(opts.model)
-
-    else:
-        pairs = loadPairs(opts.text)
-
-        sg = mSkipGram.load(opts.model)
-        for a,b,_ in pairs:
-            print sg.similarity(a,b)
+        stepsize, epochs = 0.1, 100
+        sg.train(stepsize, epochs)
+        # sg.save(opts.model)
+    # 
+    # else:
+    #     pairs = loadPairs(opts.text)
+    #
+    #     sg = mSkipGram.load(opts.model)
+    #     for a,b,_ in pairs:
+    #         print sg.similarity(a,b)
