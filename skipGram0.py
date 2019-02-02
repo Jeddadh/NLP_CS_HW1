@@ -78,12 +78,11 @@ class SkipGram():
         self.W_embedding_gradient = {}
         self.W_context_gradients = [{}]*(self.winSize - 1 )
         self.contexts_indices = [i for i in range(-(self.winSize//2),int(self.winSize/2 - 0.5) + 1) if i != 0]
-        self.set_contexts = [set()]*(self.winSize - 1)
+        self.set_contexts = [{}]*(self.winSize - 1)
         self.set_negative_samples = [set()]*(self.winSize - 1)
         self.vocab = {}
         self.vocab_size = 0
         self.vocab_index = {}
-        
 
 
     def __create_vocabulary(self):
@@ -110,19 +109,22 @@ class SkipGram():
         for word in word_to_be_eliminated :
             self.vocab.pop(word)
         self.vocab_size = len(self.vocab)
+        print(self.vocab_size)
+        print(len(self.vocab_index))
+        self.set_contexts = [{i:set() for i in self.vocab_index.values()}]*(self.winSize - 1)
 
         # create contexts
         print("creating context")
         for sentence in self.sentences :
             for i,word in enumerate(sentence) :
-                if word not in self.vocab :
+                if word not in self.vocab_index :
                     continue
                 sentence_size = len(sentence)
                 for j in self.contexts_indices :
                     if 0 <= i + j < sentence_size :
-                        if sentence[i+j] not in self.vocab :
+                        if sentence[i+j] not in self.vocab_index :
                             continue
-                        self.set_contexts[j].add((self.vocab_index[word],self.vocab_index[sentence[i+j]]))
+                        self.set_contexts[j][self.vocab_index[word]].add(self.vocab_index[sentence[i+j]])
         return None
 
     def __initialize_embeddings(self):
@@ -145,46 +147,53 @@ class SkipGram():
 
     def __create_negative_samples(self):
         print("creating negative samples")
-        self.set_negative_samples = [set()]*(self.winSize - 1)
-        return None
+        self.set_negative_samples = [{i:set() for i in self.vocab_index.values()}]*(self.winSize - 1)
+        # return None
         for j in range(self.winSize-1):
-            for (word,context_word) in self.set_contexts[j]:
+            for word in self.set_contexts[j]:
+                print(word)
                 nb_negative_samples = 0
-                while nb_negative_samples <= self.negativeRate :
-                    possible_words = list(self.vocab.keys())
+                possible_words = set(self.vocab_index).difference(self.set_contexts[j][word])
+                try :
                     possible_words.remove(word)
-                    context_word = np.random.choice(possible_words)
-                    if (word,context_word) in self.set_contexts[j] :
-                        # print((word,context_word))
-                        continue
-                    self.set_negative_samples[j].add((word,context_word))
+                except KeyError:
+                    pass
+                n_neg_samples = self.negativeRate*len(self.set_contexts[j][word])
+                while nb_negative_samples < min(n_neg_samples,len(possible_words)) :
+                    context_word = np.random.choice(list(possible_words))
+                    self.set_negative_samples[j][word].add(context_word)
+                    possible_words.remove(context_word)
                     nb_negative_samples += 1
 
     def __loss(self):
         loss = 0
         for j in range(self.winSize -1) :
-            for (word,context_word) in self.set_contexts[j]:
-                loss += safe_softplus(-np.dot(self.W_embedding[word],self.W_context[j][context_word]))
-            for (word,context_word) in self.set_negative_samples[j]:
-                loss += safe_softplus(np.dot(self.W_embedding[word],self.W_context[j][context_word]))
+            for word in self.set_contexts[j]:
+                for context_word in self.set_contexts[j][word]:
+                    loss += safe_softplus(-np.dot(self.W_embedding[word],self.W_context[j][context_word]))
+            for word in self.set_negative_samples[j]:
+                for context_word in self.set_negative_samples[j][word]:
+                    loss += safe_softplus(np.dot(self.W_embedding[word],self.W_context[j][context_word]))
         return loss
 
     def __update_params(self, stepsize):
         self.__initialize_gradients()
         # calculate the gradient
         for j in range(self.winSize-1):
-            for (word,context_word) in self.set_contexts[j]:
-                dot_product = np.dot(self.W_embedding[word],self.W_context[j][context_word])
-                neg_exp_exp = safe_exp_exp(-dot_product)
-                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] - neg_exp_exp*self.W_context[j][context_word]
-                self.W_context_gradients[j][context_word] = self.W_context_gradients[j][context_word] - neg_exp_exp*self.W_embedding[word]
-            for (word,context_word) in self.set_negative_samples[j]:
-                dot_product = np.dot(self.W_embedding[word],self.W_context[j][context_word])
-                pos_exp_exp = safe_exp_exp(dot_product)
-                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] + pos_exp_exp*self.W_context[j][context_word]
-                self.W_context_gradients[j][context_word] = self.W_context_gradients[j][context_word] + pos_exp_exp*self.W_embedding[word]
+            for word in self.set_contexts[j]:
+                for context_word in self.set_contexts[j][word]:
+                    dot_product = np.dot(self.W_embedding[word],self.W_context[j][context_word])
+                    neg_exp_exp = safe_exp_exp(-dot_product)
+                    self.W_embedding_gradient[word] = self.W_embedding_gradient[word] - neg_exp_exp*self.W_context[j][context_word]
+                    self.W_context_gradients[j][context_word] = self.W_context_gradients[j][context_word] - neg_exp_exp*self.W_embedding[word]
+            for word in self.set_negative_samples[j]:
+                for context_word in self.set_negative_samples[j][word]:
+                    dot_product = np.dot(self.W_embedding[word],self.W_context[j][context_word])
+                    pos_exp_exp = safe_exp_exp(dot_product)
+                    self.W_embedding_gradient[word] = self.W_embedding_gradient[word] + pos_exp_exp*self.W_context[j][context_word]
+                    self.W_context_gradients[j][context_word] = self.W_context_gradients[j][context_word] + pos_exp_exp*self.W_embedding[word]
         # update the params
-        for word in self.vocab :
+        for word in self.vocab_index :
             self.W_embedding[word] = self.W_embedding[word] - stepsize * self.W_embedding_gradient[word]
             for j in range(self.winSize-1):
                 self.W_context[j][word] = self.W_context[j][word] - stepsize*self.W_context_gradients[j][word]
