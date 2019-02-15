@@ -9,7 +9,9 @@ Loss_function = sum_{(w,c) \in D} log(sigmoid(v_c*v_w) + sum_{(w,c) \in D'} log(
 Derivative_of_loss w.r.t w' = sum_{(w,c) \in D, w=w'} v_c*sigmoid(-v_c*v_w) - sum_{(w,c) \in D', w=w'} v_c*sigmoid(v_c*v_w)
 
 
-************Code Choices************************************************
+**Code Choices**
+
+
 - Network Architecture: 1 hidden layer
 - No backpropagation
 
@@ -17,5 +19,5 @@ Derivative_of_loss w.r.t w' = sum_{(w,c) \in D, w=w'} v_c*sigmoid(-v_c*v_w) - su
 
 
 
-*************What didn't work********************************************
+**What didn't work**
 
