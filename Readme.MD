@@ -21,3 +21,5 @@ Derivative_of_loss w.r.t w' = sum_{(w,c) \in D, w=w'} v_c.sigmoid(-v_c*v_w) - su
 
 **What didn't work**
 
+- stopwords: We kept the stopwords because we found that they are important and give better results.
+
