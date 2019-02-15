@@ -222,9 +222,12 @@ class SkipGram():
         :param word2:
         :return: a float \in [0,1] indicating the similarity (the higher the more similar)
         """
-        emb1 = self.W_embedding[self.vocab_index[word1]]
-        emb2 = self.W_embedding[self.vocab_index[word2]]
-        return np.dot(emb1,emb2)/(np.linalg.norm(emb1)*np.linalg.norm(emb2))
+        if (word1 not in self.vocab_index.keys()) or (word2 not in self.vocab_index.keys()):
+            return 0
+        else:
+            emb1 = self.W_embedding[self.vocab_index[word1]]
+            emb2 = self.W_embedding[self.vocab_index[word2]]
+            return 0.5+0.5*np.dot(emb1,emb2)/(np.linalg.norm(emb1)*np.linalg.norm(emb2))
 
 
 
