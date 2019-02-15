@@ -12,11 +12,12 @@ Derivative_of_loss w.r.t w' = sum_{(w,c) \in D, w=w'} v_c.sigmoid(-v_c*v_w) - su
 **Code Choices**
 
 Steps:
-1- Generating one hot input matrix X
-2- Generating embedded word vectors for the context v_c
-3- Computation of loss derivative
-4- Computation of the probabilities.
+- Generating one hot input matrix X
+- Generating embedded word vectors for the context v_c
+- Computation of loss derivative
+- Computation of the probabilities.
 
+Important choices of code:
 - Network Architecture: 1 hidden layer
 - No backpropagation
 - We built a table to get rid of frequent words. Indeed, most frequent words provide less information that less frequent words in the computation of probability.
