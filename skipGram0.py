@@ -1,4 +1,3 @@
-from __future__ import division
 import argparse
 import pandas as pd
 import re

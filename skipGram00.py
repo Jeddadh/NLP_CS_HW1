@@ -74,23 +74,24 @@ class SkipGram():
         self.winSize = winSize
         self.minCount = minCount
         self.W_embedding = None
-        self.W_context = [{}]*(self.winSize - 1 )
+        self.W_context = {}
         self.W_embedding_gradient = {}
-        self.W_context_gradients = [{}]*(self.winSize - 1 )
+        self.W_context_gradients = {}
         self.contexts_indices = [i for i in range(-(self.winSize//2),int(self.winSize/2 - 0.5) + 1) if i != 0]
-        self.set_contexts = [set()]*(self.winSize - 1)
-        self.set_negative_samples = [set()]*(self.winSize - 1)
+        self.set_contexts = {}
+        self.set_negative_samples = {}
         self.vocab = {}
         self.vocab_size = 0
+        self.nb_all_words = 0
         self.vocab_index = {}
-        
-
+        self.__create_vocabulary()
+        self.__initialize_embeddings()
+        self.__create_negative_samples()
 
     def __create_vocabulary(self):
         print("creating vocab")
         self.vocab = {}
         self.vocab_index = {}
-        self.set_contexts = [set()]*(self.winSize - 1 )
         for sentence in self.sentences :
             for word in sentence :
                 if word in stopwords :
@@ -101,100 +102,109 @@ class SkipGram():
         print("eliminating words")
         word_to_be_eliminated = []
         index = 0
+        self.nb_all_words = 0
         for word in self.vocab :
             if self.vocab[word] <= self.minCount :
                 word_to_be_eliminated.append(word)
             else :
+                self.nb_all_words += self.vocab[word]
                 self.vocab_index[word] = index
                 index += 1
         for word in word_to_be_eliminated :
             self.vocab.pop(word)
+        for word in self.vocab :
+            self.vocab[word] /= self.nb_all_words
         self.vocab_size = len(self.vocab)
+        self.set_contexts = {i:set() for i in self.vocab_index.values()}
 
         # create contexts
         print("creating context")
         for sentence in self.sentences :
             for i,word in enumerate(sentence) :
-                if word not in self.vocab :
+                if word not in self.vocab_index :
                     continue
                 sentence_size = len(sentence)
                 for j in self.contexts_indices :
                     if 0 <= i + j < sentence_size :
-                        if sentence[i+j] not in self.vocab :
-                            continue
-                        self.set_contexts[j].add((self.vocab_index[word],self.vocab_index[sentence[i+j]]))
+                        try :
+                            self.set_contexts[self.vocab_index[word]].add(self.vocab_index[sentence[i+j]])
+                        except KeyError :
+                            # the word is not in vocab_index
+                            pass
         return None
 
     def __initialize_embeddings(self):
         print("initializing embeddings")
         np.random.seed(10)
         self.W_embedding = {}
-        for word in self.vocab_index :
+        self.W_context = {}
+        for word in self.vocab_index.values() :
             self.W_embedding[word] = np.random.rand(self.nEmbed).astype('float64') - 0.5
-            for i in range(len(self.set_contexts)):
-                self.W_context[i][word] = np.random.rand(self.nEmbed).astype('float64') - 0.5
+            self.W_context[word] = np.random.rand(self.nEmbed).astype('float64') - 0.5
     def __initialize_gradients(self):
         print("initializing gradients")
         self.W_embedding_gradient = {}
-        self.W_context_gradients = [{}]*(self.winSize - 1 )
-        for word in self.vocab_index :
+        self.W_context_gradients = {}
+        for word in self.vocab_index.values() :
             self.W_embedding_gradient[word] = np.zeros(self.nEmbed).astype('float64')
-            for i in range(len(self.set_contexts)) :
-                self.W_context_gradients[i][word] = np.zeros(self.nEmbed).astype('float64')
+            self.W_context_gradients[word] = np.zeros(self.nEmbed).astype('float64')
 
 
     def __create_negative_samples(self):
         print("creating negative samples")
-        self.set_negative_samples = [set()]*(self.winSize - 1)
-        return None
-        for j in range(self.winSize-1):
-            for (word,context_word) in self.set_contexts[j]:
-                nb_negative_samples = 0
-                while nb_negative_samples <= self.negativeRate :
-                    possible_words = list(self.vocab.keys())
-                    possible_words.remove(word)
-                    context_word = np.random.choice(possible_words)
-                    if (word,context_word) in self.set_contexts[j] :
-                        # print((word,context_word))
-                        continue
-                    self.set_negative_samples[j].add((word,context_word))
-                    nb_negative_samples += 1
+        self.set_negative_samples = {i:set() for i in self.vocab_index.values()}
+        # return None
+        for word in self.set_contexts:
+            nb_negative_samples = 0
+            possible_words = set(self.vocab_index.values()).difference(self.set_contexts[word])
+            n_desired_neg_samples = self.negativeRate*len(self.set_contexts[word])
+            nb_possible_words = len(possible_words)
+            try :
+                possible_words.remove(word)
+            except KeyError:
+                pass
+            self.set_negative_samples[word] = set(np.random.choice(list(possible_words),size=min(n_desired_neg_samples,nb_possible_words)))
 
     def __loss(self):
         loss = 0
-        for j in range(self.winSize -1) :
-            for (word,context_word) in self.set_contexts[j]:
-                loss += safe_softplus(-np.dot(self.W_embedding[word],self.W_context[j][context_word]))
-            for (word,context_word) in self.set_negative_samples[j]:
-                loss += safe_softplus(np.dot(self.W_embedding[word],self.W_context[j][context_word]))
+        for word in self.set_contexts:
+            for context_word in self.set_contexts[word]:
+                loss += safe_softplus(-np.dot(self.W_embedding[word],self.W_context[context_word]))
+        for word in self.set_negative_samples:
+            for context_word in self.set_negative_samples[word]:
+                loss += safe_softplus(np.dot(self.W_embedding[word],self.W_context[context_word]))
         return loss
 
-    def __update_params(self, stepsize):
+    def __update_params(self, stepsize,random=True,batch_percentage=0.5):
         self.__initialize_gradients()
         # calculate the gradient
-        for j in range(self.winSize-1):
-            for (word,context_word) in self.set_contexts[j]:
-                dot_product = np.dot(self.W_embedding[word],self.W_context[j][context_word])
+        for word in self.set_contexts:
+            if random :
+                contexts_size = int(batch_percentage*len(self.set_contexts[word]))
+                negative_contexts_size = contexts_size = int(batch_percentage*len(self.set_negative_samples[word]))
+                contexts = np.random.choice(list(self.set_contexts[word]),contexts_size)
+                negative_contexts = np.random.choice(list(self.set_negative_samples[word]),negative_contexts_size)
+            else :
+                contexts = self.set_contexts[word]
+                negative_contexts = self.set_negative_samples[word]
+            for context_word in contexts:
+                dot_product = np.dot(self.W_embedding[word],self.W_context[context_word])
                 neg_exp_exp = safe_exp_exp(-dot_product)
-                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] - neg_exp_exp*self.W_context[j][context_word]
-                self.W_context_gradients[j][context_word] = self.W_context_gradients[j][context_word] - neg_exp_exp*self.W_embedding[word]
-            for (word,context_word) in self.set_negative_samples[j]:
-                dot_product = np.dot(self.W_embedding[word],self.W_context[j][context_word])
+                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] - neg_exp_exp*self.W_context[context_word]
+                self.W_context_gradients[context_word] = self.W_context_gradients[context_word] - neg_exp_exp*self.W_embedding[word]
+            for context_word in negative_contexts:
+                dot_product = np.dot(self.W_embedding[word],self.W_context[context_word])
                 pos_exp_exp = safe_exp_exp(dot_product)
-                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] + pos_exp_exp*self.W_context[j][context_word]
-                self.W_context_gradients[j][context_word] = self.W_context_gradients[j][context_word] + pos_exp_exp*self.W_embedding[word]
+                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] + pos_exp_exp*self.W_context[context_word]
+                self.W_context_gradients[context_word] = self.W_context_gradients[context_word] + pos_exp_exp*self.W_embedding[word]
         # update the params
-        for word in self.vocab :
+        for word in self.vocab_index.values() :
             self.W_embedding[word] = self.W_embedding[word] - stepsize * self.W_embedding_gradient[word]
-            for j in range(self.winSize-1):
-                self.W_context[j][word] = self.W_context[j][word] - stepsize*self.W_context_gradients[j][word]
+            self.W_context[word] = self.W_context[word] - stepsize*self.W_context_gradients[word]
 
 
 
     def train(self, stepsize, epochs):
-        self.__create_vocabulary()
-        self.__initialize_embeddings()
-        self.__create_negative_samples()
         for i in range(epochs):
             print(i)
             if True :
@@ -212,7 +222,9 @@ class SkipGram():
         :param word2:
         :return: a float \in [0,1] indicating the similarity (the higher the more similar)
         """
-        raise NotImplementedError('implement it!')
+        emb1 = self.W_embedding[self.vocab_index[word1]]
+        emb2 = self.W_embedding[self.vocab_index[word2]]
+        return np.dot(emb1,emb2)/(np.linalg.norm(emb1)*np.linalg.norm(emb2))
 
 
 
@@ -230,13 +242,14 @@ if __name__ == '__main__':
     # opts = parser.parse_args()
 
     # if not opts.test:
-    path = "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/heldout-monolingual.tokenized.shuffled/news.en.heldout-00000-of-00050"
+
+    path = "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled/news.en-00001-of-00100"
     # path = "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/my_data.txt"
     print("preparing sentences")
     sentences = text2sentences(path)
     print("creating model")
-    sg = SkipGram(sentences,nEmbed=2, negativeRate=1, winSize = 5, minCount = 0)
-    stepsize, epochs = 0.01, 100
+    sg = SkipGram(sentences,nEmbed=100, negativeRate=1, winSize = 5, minCount = 5)
+    stepsize, epochs = 0.01, 1000
     print("training model")
     sg.train(stepsize, epochs)
     print(sg.W_embedding)
