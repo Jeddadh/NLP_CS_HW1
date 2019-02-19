@@ -56,9 +56,10 @@ def derivate_sigmoid(z):
     return sigmoid(z)*(1-sigmoid(z))
 
 def safe_softplus(x, limit=30):
-    if x > limit:
-        return x
-    return np.log(1.0 + np.exp(x))
+#     if x > limit:
+#         return x
+#     return np.log(1.0 + np.exp(x))
+    return log(1+exp(-abs(x))) + max(x,0)
 
 def safe_exp_exp(x,limit_inf = -40,limit_sup = 7):
     # if x < limit_inf :
