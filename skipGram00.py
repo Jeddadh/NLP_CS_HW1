@@ -10,7 +10,7 @@ from sklearn.preprocessing import normalize
 
 
 __authors__ = ['Elmoustapha EBNOU','Hamza JEDDAD','Kenza LAHLALI','Moncef MAGHRAOUI']
-__emails__  = ['stef','hamza.jeddad@student.ecp.fr','kenza','Moncef']
+__emails__  = ['ebnou.elmoustapha@student.ecp.fr','hamza.jeddad@student.ecp.fr','kenza.lahlali@student.fr','maghraoui.moncef@student.ecp.fr']
 
 def preprocess_sentence(sentence):
     """
