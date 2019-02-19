@@ -266,7 +266,7 @@ class SkipGram():
 
         emb1 = self.W_embedding[self.vocab_index[word1]]
         emb2 = self.W_embedding[self.vocab_index[word2]]
-        return 0.5+0.5*np.dot(emb1,emb2)/(np.linalg.norm(emb1)*np.linalg.norm(emb2))
+        return 0.5+0.5*np.dot(emb1,emb2)/(np.linalg.norm(emb1)*np.linalg.norm(emb2))#We want a similarity between 0 and 1
 
 
 
