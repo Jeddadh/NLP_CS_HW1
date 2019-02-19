@@ -36,12 +36,21 @@ def loadPairs(path):
     pairs = zip(data['word1'],data['word2'],data['similarity'])
     return pairs
 
-def sigmoid(z,limit_sup=12):
-    if -limit_sup > z  :
-        return 0
-    if z > limit_sup  :
-        return 1
-    return 1/(1+np.exp(-z))
+# def sigmoid(z,limit_sup=12):
+#     if -limit_sup > z  :
+#         return 0
+#     if z > limit_sup  :
+#         return 1
+#     return 1/(1+np.exp(-z))
+
+def sigmoid(x):
+    "Numerically stable sigmoid function."
+    if x >= 0:
+        y = exp(-x)
+        return 1 / (1 + y)
+    else:
+        y = exp(x)
+        return y / (1 + y)
 
 def derivate_sigmoid(z):
     return sigmoid(z)*(1-sigmoid(z))
