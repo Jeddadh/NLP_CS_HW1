@@ -21,6 +21,11 @@ Important choices of code:
 - Network Architecture: 1 hidden layer
 - No backpropagation
 - We built a table to get rid of frequent words. Indeed, most frequent words provide less information that less frequent words in the computation of probability.
+- Problem with overflow for sigmoid:
+In the beginning we used a sigmoid function that returns 0 if -limit_sup > z but we realized that this function is not optimal that's why we used the trick of using exp(z)/(1+exp(z)) if z<0.
+- Problem with overflow with softplus: Whenever x gets too large the result is inf, we used the trick log(1+exp(x)) = log(1+exp(x)) - log(exp(x)) + x = log(1+exp(-x)) + x.
+
+
 
 
 

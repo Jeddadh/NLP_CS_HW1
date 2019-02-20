@@ -10,7 +10,7 @@ from sklearn.preprocessing import normalize
 
 
 __authors__ = ['Elmoustapha EBNOU','Hamza JEDDAD','Kenza LAHLALI','Moncef MAGHRAOUI']
-__emails__  = ['stef','hamza.jeddad@student.ecp.fr','kenza','Moncef']
+__emails__  = ['ebnou.elmoustapha@student.ecp.fr','hamza.jeddad@student.ecp.fr','kenza.lahlali@student.fr','maghraoui.moncef@student.ecp.fr']
 
 def preprocess_sentence(sentence):
     """
@@ -36,20 +36,30 @@ def loadPairs(path):
     pairs = zip(data['word1'],data['word2'],data['similarity'])
     return pairs
 
-def sigmoid(z,limit_sup=12):
-    if -limit_sup > z  :
-        return 0
-    if z > limit_sup  :
-        return 1
-    return 1/(1+np.exp(-z))
+# def sigmoid(z,limit_sup=12):
+#     if -limit_sup > z  :
+#         return 0
+#     if z > limit_sup  :
+#         return 1
+#     return 1/(1+np.exp(-z))
+
+def sigmoid(x):
+    "Numerically stable sigmoid function."
+    if x >= 0:
+        y = exp(-x)
+        return 1 / (1 + y)
+    else:
+        y = exp(x)
+        return y / (1 + y)
 
 def derivate_sigmoid(z):
     return sigmoid(z)*(1-sigmoid(z))
 
 def safe_softplus(x, limit=30):
-    if x > limit:
-        return x
-    return np.log(1.0 + np.exp(x))
+#     if x > limit:
+#         return x
+#     return np.log(1.0 + np.exp(x))
+    return log(1+exp(-abs(x))) + max(x,0)
 
 def safe_exp_exp(x,limit_inf = -40,limit_sup = 7):
     # if x < limit_inf :
@@ -258,7 +268,7 @@ class SkipGram():
 
         emb1 = self.W_embedding[self.vocab_index[word1]]
         emb2 = self.W_embedding[self.vocab_index[word2]]
-        return 0.5+0.5*np.dot(emb1,emb2)/(np.linalg.norm(emb1)*np.linalg.norm(emb2))
+        return 0.5+0.5*np.dot(emb1,emb2)/(np.linalg.norm(emb1)*np.linalg.norm(emb2))#We want a similarity between 0 and 1
 
 
 
