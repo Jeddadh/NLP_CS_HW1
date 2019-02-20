@@ -115,7 +115,6 @@ class SkipGram():
                 self.nnnnn += self.vocab[word]
                 self.vocab[word] = self.vocab[word]**0.75 #for the unigram distribution computation
                 self.nb_all_words += self.vocab[word]
-
                 self.vocab_index[word] = index
                 index += 1
         for word in word_to_be_eliminated :
@@ -123,7 +122,7 @@ class SkipGram():
         for word in self.vocab :
             self.vocab[word] /= self.nb_all_words
         self.vocab_size = len(self.vocab)
-        self.set_contexts = {i:set() for i in self.vocab_index.values()}
+        self.set_contexts = {}
 
         # create contexts
         print("creating context")
@@ -135,14 +134,17 @@ class SkipGram():
                 if not i % 10 :
                     print("word {i}/{t}".format(i=int(100*(iiiii/self.nnnnn)),t=100),end="\r")
 
-                if word not in self.vocab_index :
-                    continue
+                # try :
+                #     iiiiiiiiiiiiiii = self.vocab_index[word]
+                # except KeyError :
+                #     continue
                 sentence_size = len(sentence)
                 iiiii += 1
                 for j in self.contexts_indices :
                     if 0 <= i + j < sentence_size :
                         try :
-                            self.set_contexts[self.vocab_index[word]].add(self.vocab_index[sentence[i+j]])
+                            self.set_contexts[self.vocab_index[word]] = self.set_contexts.get(self.vocab_index[word], set())
+                            self.set_contexts[self.vocab_index[word]] = self.set_contexts[self.vocab_index[word]].add(self.vocab_index[sentence[i+j]])
                             self.set_negative_samples[self.vocab_index[word]] = self.set_negative_samples.get(self.vocab_index[word],set())
                             # print(np.random.choice(list(self.vocab),size=self.negativeRate,p=proba_list))
                             self.set_negative_samples[self.vocab_index[word]] = self.set_negative_samples[self.vocab_index[word]].union(set(np.random.choice(list(self.vocab_index.values()),size=self.negativeRate,p=proba_list)))
@@ -201,7 +203,7 @@ class SkipGram():
         for word in self.set_contexts:
             if random :
                 contexts_size = int(batch_percentage*len(self.set_contexts[word]))
-                negative_contexts_size = contexts_size = int(batch_percentage*len(self.set_negative_samples[word]))
+                negative_contexts_size = int(batch_percentage*len(self.set_negative_samples[word]))
                 contexts = np.random.choice(list(self.set_contexts[word]),contexts_size)
                 # print(self.set_negative_samples[word])
                 negative_contexts = np.random.choice(list(self.set_negative_samples[word]),negative_contexts_size)
@@ -211,9 +213,9 @@ class SkipGram():
             for context_word in contexts:
                 # Sum on D
                 dot_product = np.dot(self.W_embedding[word],self.W_context[context_word])
-                neg_exp_exp = sigmoid(-dot_product)
-                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] - neg_exp_exp*self.W_context[context_word]
-                self.W_context_gradients[context_word] = self.W_context_gradients[context_word] - neg_exp_exp*self.W_embedding[word]
+                sig_dot = sigmoid(-dot_product)
+                self.W_embedding_gradient[word] = self.W_embedding_gradient[word] - sig_dot*self.W_context[context_word]
+                self.W_context_gradients[context_word] = self.W_context_gradients[context_word] - sig_dot*self.W_embedding[word]
             for context_word in negative_contexts:
                 # Sum on D'
                 dot_product = np.dot(self.W_embedding[word],self.W_context[context_word])
@@ -276,7 +278,7 @@ if __name__ == '__main__':
     # if not opts.test:
 
     path = "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled/news.en-00001-of-00100"
-    path =     "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/heldout-monolingual.tokenized.shuffled/news.en.heldout-00000-of-00050"
+    # path =     "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/heldout-monolingual.tokenized.shuffled/news.en.heldout-00000-of-00050"
     # path = "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/my_data.txt"
     print("preparing sentences")
     sentences = text2sentences(path)
