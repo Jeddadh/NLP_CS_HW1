@@ -2,7 +2,7 @@ from __future__ import division
 import argparse
 import pandas as pd
 import re
-
+from time import time
 # useful stuff
 import numpy as np
 from scipy.special import expit
@@ -89,7 +89,7 @@ class SkipGram():
         self.C_embedding = None
         self.W_embedding_gradient = None
         self.C_embedding_gradients = None
-        self.contexts_indices = list(range(-winSize//2,0))+list(range(1,int(winSize//2)+1))
+        self.contexts_indices = list(range(-winSize//2,0))+list(range(1,int(winSize//2)))
         self.word_occurence, self.word_index, self.index_occurence, self.sentences_index, self.word_proba = \
             sentences_to_indices_and_get_vocab(self.sentences)
         self.list_proba = np.array(list(self.word_proba.values()))
@@ -98,15 +98,16 @@ class SkipGram():
         self.__initialize_embeddings()
         self.contexts = None
         self.__create_context()
+        self.loss = 0
 
 
 
     def __initialize_embeddings(self):
         print("initializing embeddings")
         np.random.seed(10)
-        self.W_embedding = np.random.normal(size = (self.vocab_size ,self.nEmbed))  - 0.5
+        self.W_embedding = 2*(np.random.normal(size = (self.vocab_size ,self.nEmbed))  - 0.5)
         print("embedding size", self.W_embedding.shape)
-        self.C_embedding = np.random.normal(size = (self.vocab_size ,self.nEmbed))- 0.5
+        self.C_embedding = 2*(np.random.normal(size = (self.vocab_size ,self.nEmbed))- 0.5)
 
     def __zero_grad(self):
         print("initializing gradients")
@@ -125,28 +126,23 @@ class SkipGram():
                         continue
                 self.contexts.append([i,i_contexts])
 
-    def __loss(self):
-        return 0
-        loss = 0
-        for word in self.contexts:
-            for context_word in self.contexts[word]:
-                loss += safe_softplus(-np.dot(self.W_embedding[word],self.W_context[context_word]))
-        for word in self.set_negative_samples:
-            for context_word in self.set_negative_samples[word]:
-                loss += safe_softplus(np.dot(self.W_embedding[word],self.W_context[context_word]))
-        return loss
-
     def __update_params(self, stepsize,random=True,batch_percentage=0.5):
         self.__zero_grad()
-        for w, w_context in self.contexts :
+        n_contexts = len(self.contexts)
+        for i in range(n_contexts):
+            w, w_context = self.contexts[i]
+            print("{i} / {n}".format(i=i,n=n_contexts),end="\r")
             context_size = len(w_context)
             W_emb = np.tile(self.W_embedding[w],context_size).reshape((context_size,self.nEmbed))
             C_emb = self.C_embedding[w_context]
             dots = np.dot(C_emb, self.W_embedding[w])
+            sig_dots = -sigmoid(-dots).reshape((context_size,1))
             self.W_embedding[w] = self.W_embedding[w] - stepsize * \
-                (-sigmoid(-dots.repeat(self.nEmbed).reshape((context_size, self.nEmbed)))*C_emb).sum(axis=0)
+                np.multiply(sig_dots,C_emb).sum(axis=0)
+            # print(sig_dots)
             self.C_embedding[w_context] = self.C_embedding[w_context] - stepsize * \
-                (-sigmoid(-dots.repeat(self.nEmbed).reshape((context_size, self.nEmbed)))*W_emb)
+                np.multiply(sig_dots,W_emb)
+            self.loss -= np.log(sigmoid(dots)).sum()
 
 
             negative_context_size = self.negativeRate*context_size
@@ -155,18 +151,23 @@ class SkipGram():
             negative_context = np.random.choice(self.list_words, negative_context_size, p=self.list_proba)
             C_emb_neg = self.C_embedding[negative_context]
             neg_dots = np.dot(C_emb_neg, self.W_embedding[w])
+            sig_neg_dots = sigmoid(neg_dots).reshape((negative_context_size,1))
             self.W_embedding[w] = self.W_embedding[w] - stepsize * \
-                (sigmoid(neg_dots.repeat(self.nEmbed).reshape((negative_context_size, self.nEmbed)))*C_emb_neg).sum(axis=0)
+                np.multiply(sig_neg_dots,C_emb_neg).sum(axis=0)
             self.C_embedding[negative_context] = self.C_embedding[w_context] - stepsize * \
-                (sigmoid(neg_dots.repeat(self.nEmbed).reshape((negative_context_size, self.nEmbed)))*W_emb_negs)
+                np.multiply(sig_neg_dots,C_emb_neg)
+            self.loss -= np.log(sigmoid(-neg_dots)).sum()
 
 
     def train(self, stepsize, epochs):
         for i in range(epochs):
-            print(i)
-            if True :
-                print("{i} : {loss}".format(i=i,loss=self.__loss()))
+            time0 = time()
+            self.loss = 0
+            print("epoch ",i)
             self.__update_params(stepsize)
+            if True :
+                print("  loss : {loss}".format(loss=self.loss))
+            print("  time {} s".format(time()-time0))
 
 
     def save(self,path):
@@ -210,13 +211,13 @@ if __name__ == '__main__':
     # if not opts.test:
 
     path = "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled/news.en-00001-of-00100"
-    path =     "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/heldout-monolingual.tokenized.shuffled/news.en.heldout-00000-of-00050"
+    # path =     "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/1-billion-word-language-modeling-benchmark-r13output/heldout-monolingual.tokenized.shuffled/news.en.heldout-00000-of-00050"
     # path = "C:/Users/Hamza/Centrale3A/MscAI_2018_2019/NLP/DM1/my_data.txt"
     print("preparing sentences")
     sentences = text2sentences(path)
     print("creating model")
     sg = SkipGram(sentences,nEmbed=100, negativeRate=1, winSize = 5, minCount = 5)
-    stepsize, epochs = 0.01, 1000
+    stepsize, epochs = 0.01, 20
     print("training model")
     sg.train(stepsize, epochs)
     print(sg.W_embedding)
