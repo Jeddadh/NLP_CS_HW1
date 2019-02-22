@@ -28,4 +28,4 @@ Important choices of code:
 **What could be done to improve our code**
 
 - We could've vectorized the loss computation and the gradient which could have alowed us to avoid the "for" loops and gain time.
-
+- We could have used an adaptatif stepsize.
