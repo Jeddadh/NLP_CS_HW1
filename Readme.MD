@@ -40,3 +40,6 @@ Important choices of code:
 
 - We could've vectorized the loss computation and the gradient which could have alowed us to avoid the "for" loops and gain time.
 - We could have used an adaptatif stepsize.
+
+**Save and load the model**
+The model can be saved using pickle module
