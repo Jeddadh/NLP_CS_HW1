@@ -20,7 +20,6 @@ Steps:
 Important choices of code:
 - Network Architecture: 1 hidden layer
 - No backpropagation
-- We built a table to get rid of frequent words. Indeed, most frequent words provide less information that less frequent words in the computation of probability.
 - Problem with overflow for sigmoid corrected.
 - Problem with overflow with softplus corrected.
 - stopwords: We kept the stopwords because we found that they are important and give better results. After using NLTK package and moving stopwords, we realized that it's not a good idea to keep these package as they delete some key information about the context. Therefore, we decided to keep all the stopwords.
