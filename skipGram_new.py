@@ -61,7 +61,7 @@ def loadPairs(path):
     return pairs
 
 
-def sigmoid(x):
+def sig(x):
     "Numerically stable sigmoid function."
     if x >= 0:
         y = np.exp(-x)
@@ -69,7 +69,8 @@ def sigmoid(x):
     else:
         y = np.exp(x)
         return y / (1 + y)
-
+        
+sigmoid = np.vectorize(sig)
 
 
 
