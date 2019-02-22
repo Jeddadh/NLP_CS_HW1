@@ -8,9 +8,13 @@ import numpy as np
 from scipy.special import expit
 from sklearn.preprocessing import normalize
 
+import pickle
+
+index_names = "word_index.pkl"
+index_embedding_name = lambda  epoch : "index_embedding_name_{}.pkl".format(epoch)
 
 __authors__ = ['Elmoustapha EBNOU','Hamza JEDDAD','Kenza LAHLALI','Moncef MAGHRAOUI']
-__emails__  = ['stef','hamza.jeddad@student.ecp.fr','kenza','Moncef']
+__emails__  = ['elmoustapha.ebnou@student.ecp.fr','hamza.jeddad@student.ecp.fr','kenza.lahlali@student.ecp.fr','moncef.maghraoui@student.ecp.fr']
 
 def preprocess_sentence(sentence):
     """
@@ -56,12 +60,18 @@ def loadPairs(path):
     pairs = zip(data['word1'],data['word2'],data['similarity'])
     return pairs
 
-def sigmoid(z,limit_sup=12):
-    # if -limit_sup > z  :
-    #     return 0
-    # if z > limit_sup  :
-    #     return 1
-    return 1/(1+np.exp(-z))
+
+def sigmoid(x):
+    "Numerically stable sigmoid function."
+    if x >= 0:
+        y = np.exp(-x)
+        return 1 / (1 + y)
+    else:
+        y = np.exp(x)
+        return y / (1 + y)
+
+
+
 
 def derivate_sigmoid(z):
     return sigmoid(z)*(1-sigmoid(z))
@@ -78,6 +88,11 @@ def safe_exp_exp(x,limit_inf = -40,limit_sup = 7):
         return 1
     return np.exp(x)/(1+np.exp(x))
 
+def save_emb(emb,epoch):
+    file_name = index_embedding_name(epoch)
+    with open(file_name,"wb") as f :
+        pickle.dump(emb,f)
+
 class SkipGram():
     def __init__(self,sentences, nEmbed=100, negativeRate=5, winSize = 5, minCount = 5):
         self.sentences = sentences
@@ -93,6 +108,9 @@ class SkipGram():
         self.word_occurence, self.word_index, self.index_occurence, self.sentences_index, self.word_proba = \
             sentences_to_indices_and_get_vocab(self.sentences)
         self.list_proba = np.array(list(self.word_proba.values()))
+        global index_names
+        with open(index_names,"wb") as f:
+            pickle.dump(self.word_index,f)
         self.list_words = np.array(list(self.word_proba.keys()))
         self.vocab_size = len(self.word_occurence)
         self.__initialize_embeddings()
@@ -154,7 +172,7 @@ class SkipGram():
             sig_neg_dots = sigmoid(neg_dots).reshape((negative_context_size,1))
             self.W_embedding[w] = self.W_embedding[w] - stepsize * \
                 np.multiply(sig_neg_dots,C_emb_neg).sum(axis=0)
-            self.C_embedding[negative_context] = self.C_embedding[w_context] - stepsize * \
+            self.C_embedding[negative_context] = self.C_embedding[negative_context] - stepsize * \
                 np.multiply(sig_neg_dots,C_emb_neg)
             self.loss -= np.log(sigmoid(-neg_dots)).sum()
 
@@ -168,6 +186,7 @@ class SkipGram():
             if True :
                 print("  loss : {loss}".format(loss=self.loss))
             print("  time {} s".format(time()-time0))
+            save_emb(self.W_embedding,i)
 
 
     def save(self,path):
@@ -216,7 +235,7 @@ if __name__ == '__main__':
     print("preparing sentences")
     sentences = text2sentences(path)
     print("creating model")
-    sg = SkipGram(sentences,nEmbed=100, negativeRate=1, winSize = 5, minCount = 5)
+    sg = SkipGram(sentences,nEmbed=100, negativeRate=5, winSize = 5, minCount = 5)
     stepsize, epochs = 0.01, 20
     print("training model")
     sg.train(stepsize, epochs)
