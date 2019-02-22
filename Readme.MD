@@ -21,16 +21,11 @@ Important choices of code:
 - Network Architecture: 1 hidden layer
 - No backpropagation
 - We built a table to get rid of frequent words. Indeed, most frequent words provide less information that less frequent words in the computation of probability.
-- Problem with overflow for sigmoid:
-In the beginning we used a sigmoid function that returns 0 if -limit_sup > z but we realized that this function is not optimal that's why we used the trick of using exp(z)/(1+exp(z)) if z<0.
-- Problem with overflow with softplus: Whenever x gets too large the result is inf, we used the trick log(1+exp(x)) = log(1+exp(x)) - log(exp(x)) + x = log(1+exp(-x)) + x.
+- Problem with overflow for sigmoid corrected.
+- Problem with overflow with softplus corrected.
+- stopwords: We kept the stopwords because we found that they are important and give better results. After using NLTK package and moving stopwords, we realized that it's not a good idea to keep these package as they delete some key information about the context. Therefore, we decided to keep all the stopwords.
 
+**What could be done to improve our code**
 
-
-
-
-
-**What didn't work**
-
-- stopwords: We kept the stopwords because we found that they are important and give better results.
-
+- We could've vectorized the loss computation and the gradient which could have alowed us to avoid the "for" loops and gain time.
+- We could have used an adaptatif stepsize.
