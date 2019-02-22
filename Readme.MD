@@ -1,21 +1,33 @@
-@Authors: Ebnou Moustapha, Jedad Hamza, Lahlali Kenza, Maghraoui Moncef
+@Authors: Ebnou Elmoustapha, Jeddad Hamza, Lahlali Kenza, Maghraoui Moncef
 
-**Loss Derivation**
+For our implementation we relied on Goldbery & Levy paper : **word2vec Explained: Deriving Mikolov et al.'s Negative-Sampling Word-Embedding Method**.
 
-Derivative_of_sigmoid(z) = sigmoid(-z)*sigmoid(z)
+- **Loss and loss derivation** : See the attached report to check the loss function and its derivative computation
 
-Loss_function = sum_{(w,c) \in D} log(sigmoid(v_c.v_w) + sum_{(w,c) \in D'} log(sigmoid(-v_c.v_w)
+- **preprocessing steps** : 
+  - replace punctuation by spaces
+  - replace numerical characters with spaces
+  - replace consecutive spaces with one space
+  - remove space from the first and the last element of the string
+  - split the sentence by space
+  
+- **getting vocabulary and positive contexts**
+  - We explored all the file sentences, and for every word store its occurence in a dictionnary
+  - We associated to each word an index
+  - We associated to each word a proba (according to the unigram distribution)
+  - **_Creating contexts_**
+  - for every sentence :
+    - for every word in the sentence :
+      - w_context : list of word's contexts (according to the window size)
+      - add the couple [word,w_context]
 
-Derivative_of_loss w.r.t w' = sum_{(w,c) \in D, w=w'} v_c.sigmoid(-v_c*v_w) - sum_{(w,c) \in D', w=w'} v_c.sigmoid(v_c*v_w)
-
-
-**Code Choices**
-
-Steps:
-- Generating one hot input matrix X
-- Generating embedded word vectors for the context v_c
-- Computation of loss derivative
-- Computation of the probabilities.
+- **training**
+  - _Initialization_ : We initialize the vectors with standard gaussian distribution
+  - Parameters update :
+    - for every sentence :
+      - for every word :
+        - sample N words from the vocabulary according to the unigram distribution (N = Negative Rate * # of words in the context) wi
+        - update the word and  vector with v_w = v_w - stepsize*(dJ/dv_w)
 
 Important choices of code:
 - Network Architecture: 1 hidden layer
